@@ -1,6 +1,19 @@
 {
 	"name": "caccu",
-	"version": "0.0.2",
+	"description": "Lightweight, in-memory cache for Node.js and browsers",
+	"version": "0.0.3",
+	"repository": "kumpmati/caccu",
+	"contributors": [
+		"Matias Kumpulainen"
+	],
+	"license": "MIT",
+	"keywords": [
+		"cache",
+		"in-memory",
+		"memory",
+		"node",
+		"web"
+	],
 	"scripts": {
 		"dev": "vite dev",
 		"build": "svelte-kit sync && svelte-package",
