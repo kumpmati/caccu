@@ -1,38 +1,54 @@
-# create-svelte
+# Caccu
 
-Everything you need to build a Svelte project, powered by [`create-svelte`](https://github.com/sveltejs/kit/tree/master/packages/create-svelte).
+**This package is in a very early stage**
 
-## Creating a project
+Caccu is a small in-memory cache that works in both Node.js and in a browser. It has no dependencies.
 
-If you're seeing this, you've probably already done this step. Congrats!
+## Examples
 
-```bash
-# create a new project in the current directory
-npm create svelte@latest
+Here's a basic example of how to create a cache, write to it and read from it.
 
-# create a new project in my-app
-npm create svelte@latest my-app
+```js
+import { Caccu } from 'caccu';
+
+const cache = new Caccu();
+
+// add an entry to the cache with the key `key-1`, that never expires.
+cache.set('key-1', { a: 5 });
+
+// retrieve the value from the cache
+const value = cache.get('key-1');
 ```
 
-## Developing
+You can optionally define a TTL (time to live) for the entries
+to automatically remove them from the cache after a certain period of timer.
 
-Once you've created a project and installed dependencies with `npm install` (or `pnpm install` or `yarn`), start a development server:
+```js
+// add an entry to the cache that will expire in 10 seconds
+cache.set('key-2', { b: 5 }, 10);
 
-```bash
-npm run dev
+const value1 = cache.get('key-2');
+console.log(value1); // { b: 5 }
 
-# or start the server and open the app in a new browser tab
-npm run dev -- --open
+// wait 11 seconds before attempting to retrieve
+setTimeout(() => {
+	const value2 = cache.get('key-2');
+	console.log(value2); // null
+}, 1000 * 11);
 ```
 
-## Building
+There is also a `getOrUpdate` function that automatically updates the cache if the key is not found.
+It also prevents multiple simultaneous updates of the same key.
 
-To create a production version of your app:
+```js
+// example of using the `getOrUpdate` function in an express handler
+const myHandler: RequestHandler = async (req, res, next) => {
+	const update = async () => {
+		return expensiveDatabaseCall();
+	};
 
-```bash
-npm run build
+	const value = await cache.getOrUpdate('key-3', update, 10);
+
+	return res.status(200).json(value);
+};
 ```
-
-You can preview the production build with `npm run preview`.
-
-> To deploy your app, you may need to install an [adapter](https://kit.svelte.dev/docs/adapters) for your target environment.
