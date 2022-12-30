@@ -1,7 +1,7 @@
 {
 	"name": "caccu",
 	"description": "Tiny in-memory cache for Node.js and browsers",
-	"version": "0.0.3",
+	"version": "0.0.4",
 	"repository": "kumpmati/caccu",
 	"contributors": [
 		"Matias Kumpulainen"
