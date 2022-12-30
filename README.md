@@ -1,4 +1,4 @@
-# Caccu
+# Caccu 🍰
 
 **This package is in a very early stage**
 
