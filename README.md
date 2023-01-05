@@ -1,5 +1,7 @@
 # Caccu 🍰
 
+![unit test status badge](https://github.com/kumpmati/caccu/actions/workflows/testing.yml/badge.svg)
+
 **This package is in a very early stage**
 
 Caccu is a small in-memory cache that works in both Node.js and in a browser. It has no dependencies.
