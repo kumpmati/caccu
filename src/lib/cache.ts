@@ -1,27 +1,44 @@
-type CacheEntry<T> = {
-	val: T;
-	exp: number;
-	ttl: number;
-};
+import { copy } from './util';
 
-type UpdateFunc<T> = () => Promise<T>;
+const DEFAULT_GC_INTERVAL = 1000 * 60 * 60; // 60 minutes
 
 export class Caccu {
-	private mem: Map<string, CacheEntry<any>>;
-	private promises: Map<string, Promise<any>>;
-	private interval: any | null;
+	private _mem: Map<string, CacheEntry>;
+	private _promises: Map<string, Promise<any>>;
+	private _interval: any | null;
+	private _statistics: Stats;
 
-	constructor() {
-		this.mem = new Map();
-		this.promises = new Map();
+	constructor(opts?: CaccuOpts) {
+		this._mem = new Map();
+		this._promises = new Map();
+		this._statistics = {
+			hits: 0,
+			misses: 0,
+			items: 0
+		};
 
 		// interval to clear out expired entries
-		this.interval = setInterval(() => {
-			this.mem.forEach((value, key) => {
-				if (!isValid(value)) this.delete(key);
-			});
-		}, 1000 * 60 * 60); // 60 min
+		this._interval = setInterval(this.gc, opts?.cleanupInterval ?? DEFAULT_GC_INTERVAL);
 	}
+
+	/**
+	 * Internal garbage collection.
+	 */
+	private gc = () => {
+		for (const [key, value] of this._mem) {
+			if (!alive(value)) this.delete(key);
+		}
+	};
+
+	/**
+	 * Stops the garbage collection and clears the in-memory cache.
+	 *
+	 * This does **not** clear the external store.
+	 */
+	cleanup = () => {
+		this._mem.clear();
+		clearInterval(this._interval);
+	};
 
 	/**
 	 * Adds a value into the cache under the given key.
@@ -29,73 +46,87 @@ export class Caccu {
 	 * A ttl of 0 means the value will never expire.
 	 * @param key Key used to retrieve value from cache
 	 * @param value Value to store in cache
-	 * @param ttl Time to live in seconds
-	 * @returns
+	 * @param ttl How long to store value in cache (seconds)
+	 * @returns Cached value
 	 */
 	set = <T = any>(key: string, value: T, ttl = 0): T => {
 		if (!str(key)) throw new TypeError('key must be a string');
 		if (ttl < 0) throw new Error('ttl cannot be below 0');
 
-		this.mem.set(key, {
+		this._mem.set(key, {
 			val: value,
 			exp: ttl === 0 ? -1 : Date.now() + ttl * 1000,
 			ttl
 		});
+
+		this._statistics.items = this._mem.size;
 
 		return value;
 	};
 
 	/**
 	 * Retrieves a value from the cache, if it exists.
-	 * @param key
+	 * @param key Key used to retrieve value from cache
+	 * @returns Cached value
 	 */
 	get = <T = any>(key: string): T | null => {
 		if (!str(key)) throw new TypeError('key must be a string');
 
-		const entry = this.mem.get(key);
-		if (!isValid(entry)) return null;
+		const entry = this._mem.get(key);
+		if (!alive(entry)) {
+			this._statistics.misses += 1;
+			return null;
+		}
+
+		this._statistics.hits += 1;
 
 		return entry.val;
 	};
 
 	/**
-	 *
-	 * @param key
-	 * @param update
+	 * Behaves like an async version of `get`, with the exception that cache misses are
+	 * handled by calling the `update` function to get the value. The return value of `update`
+	 * is then cached.
+	 * @param key Key used to retrieve value from cache
+	 * @param update function to update value in cache in case of a miss
+	 * @returns Promise resolving to cached value
 	 */
 	getOrUpdate = async <T = any>(key: string, update: UpdateFunc<T>, ttl = 0): Promise<T> => {
 		if (!str(key)) throw new TypeError('key must be a string');
 		if (!func(update)) throw new TypeError('update must be a function');
 
 		// wait for any pending updates to finish before accessing cache
-		const pending = this.promises.get(key);
+		const pending = this._promises.get(key);
 		if (pending) await pending;
 
-		const entry = this.mem.get(key);
-		if (isValid(entry)) {
+		const entry = this._mem.get(key);
+		if (alive(entry)) {
+			this._statistics.hits += 1;
 			return entry.val;
 		}
 
 		const promise = update().then((v) => {
 			this.set(key, v, ttl); // update cache with latest value
-			this.promises.delete(key); // remove pending promise
+			this._promises.delete(key); // remove pending promise
 			return v;
 		});
 
-		this.promises.set(key, promise);
+		this._promises.set(key, promise);
+		this._statistics.misses += 1;
 
 		return await promise;
 	};
 
 	/**
 	 * Returns `true` if cache contains a value for the given `key`.
+	 * This does not affect the cache statistics.
 	 * @param key key to check
 	 * @returns
 	 */
 	has = (key: string): boolean => {
 		if (!str(key)) throw new TypeError('key must be a string');
 
-		return isValid(this.mem.get(key));
+		return alive(this._mem.get(key));
 	};
 
 	/**
@@ -105,18 +136,23 @@ export class Caccu {
 	delete = (key: string) => {
 		if (!str(key)) throw new TypeError('key must be a string');
 
-		this.promises.delete(key);
-		this.mem.delete(key);
+		this._promises.delete(key);
+		this._mem.delete(key);
 	};
 
 	/**
 	 * Destroys the cache.
 	 */
 	destroy = () => {
-		this.mem.clear();
-		this.promises.clear();
-		clearInterval(this.interval);
+		this._mem.clear();
+		this._promises.clear();
+		clearInterval(this._interval);
 	};
+
+	/**
+	 * Returns a read-only copy of the current statistics for the cache
+	 */
+	stats = (): Readonly<Stats> => copy(this._statistics);
 }
 
 const str = (v: unknown): v is string => typeof v === 'string';
@@ -124,6 +160,6 @@ const str = (v: unknown): v is string => typeof v === 'string';
 const func = (v: unknown): v is string => typeof v === 'function';
 
 // the entry is valid if it exists and has not expired (ttl=0: never expires)
-const isValid = <T>(entry: CacheEntry<T> | undefined): entry is CacheEntry<T> => {
-	return !!entry && (entry.ttl === 0 || Date.now() < entry.exp);
+const alive = <T>(entry: CacheEntry<T> | undefined): entry is CacheEntry<T> => {
+	return !!entry && (entry.ttl === -1 || Date.now() < entry.exp);
 };

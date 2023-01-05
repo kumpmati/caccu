@@ -1,7 +1,7 @@
 import type { ServerLoad } from '@sveltejs/kit';
 import { Caccu } from '../lib';
 
-const cache = new Caccu();
+const cache = new Caccu({ cleanupInterval: 1000 });
 
 export const load: ServerLoad = async () => {
 	return {
