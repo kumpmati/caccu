@@ -1,1 +1,2 @@
-export const copy = <T>(val: T): T => JSON.parse(JSON.stringify(val));
+export const str = (v: unknown): v is string => typeof v === 'string';
+export const func = (v: unknown): v is string => typeof v === 'function';

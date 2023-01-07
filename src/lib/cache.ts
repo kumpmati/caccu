@@ -1,4 +1,4 @@
-import { copy } from './util';
+import { func, str } from './util';
 
 const DEFAULT_GC_INTERVAL = 1000 * 60 * 60; // 60 minutes
 const ERR_KEY_TYPE = 'key must be a string';
@@ -51,8 +51,6 @@ export class Caccu {
 			exp: ttl === 0 ? 0 : Date.now() + ttl * 1000,
 			ttl
 		});
-
-		this._statistics.items = this._mem.size;
 
 		return value;
 	};
@@ -156,10 +154,6 @@ export class Caccu {
 		return this._statistics;
 	};
 }
-
-const str = (v: unknown): v is string => typeof v === 'string';
-
-const func = (v: unknown): v is string => typeof v === 'function';
 
 // the entry is valid if it exists and has not expired (ttl=0: never expires)
 const alive = <T>(entry: CacheEntry<T> | undefined): entry is CacheEntry<T> => {
