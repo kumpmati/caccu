@@ -1,3 +1,4 @@
+import type { CaccuOpts, CacheEntry, Stats, UpdateFunc } from './types';
 import { func, str } from './util';
 
 const DEFAULT_GC_INTERVAL = 1000 * 60 * 60; // 60 minutes
