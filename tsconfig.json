@@ -1,18 +1,19 @@
 {
 	"compilerOptions": {
 		"lib": ["ES2022"],
+		"target": "ES2022",
+		"module": "CommonJS",
 		"esModuleInterop": true,
 		"forceConsistentCasingInFileNames": true,
 		"resolveJsonModule": true,
 		"skipLibCheck": true,
 		"sourceMap": true,
 		"strict": true,
-		"module": "CommonJS",
-		"target": "ES5",
-		"outDir": "lib",
-		"declaration": true
+		"moduleResolution": "node",
+		"declaration": true,
+		"outDir": "dist"
 	},
 
-	"include": ["./src/**/*.ts"],
+	"include": ["./src/**/*.ts", "./src/**/*.d.ts"],
 	"exclude": ["*.spec.ts", "*.test.ts"]
 }
