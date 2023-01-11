@@ -1,4 +1,4 @@
-import Caccu from '$lib';
+import { Caccu } from '../src/index';
 import { describe, expect, it } from 'vitest';
 import { sleep } from './util';
 

@@ -29,7 +29,7 @@ export class Caccu {
 	 * Internal garbage collection.
 	 */
 	private gc = () => {
-		for (const [key, value] of this._mem) {
+		for (const [key, value] of Array.from(this._mem.entries())) {
 			if (!alive(value)) this.delete(key);
 		}
 	};

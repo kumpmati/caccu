@@ -1,7 +1,7 @@
 {
 	"name": "caccu",
 	"description": "Tiny in-memory cache for Node.js and browsers",
-	"version": "0.2.0",
+	"version": "0.3.0",
 	"repository": "kumpmati/caccu",
 	"homepage": "https://github.com/kumpmati/caccu#readme",
 	"contributors": [
@@ -15,35 +15,33 @@
 		"node",
 		"web"
 	],
+	"main": "./dist/index.js",
+	"types": "./dist/index.d.ts",
+	"exports": {
+		".": {
+			"require": "./dist/index.js",
+			"import": "./dist/index.mjs",
+			"types": "./dist/index.d.ts"
+		}
+	},
 	"scripts": {
-		"dev": "vite dev",
-		"build": "svelte-kit sync && svelte-package",
-		"prepublishOnly": "echo 'Did you mean to publish `./package/`, instead of `./`?' && exit 1",
-		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
-		"check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
+		"build": "tsup src/index.ts --format cjs,esm --dts --clean",
+		"dev": "npm run build -- --watch src",
 		"test": "vitest",
 		"lint": "prettier --plugin-search-dir . --check . && eslint .",
 		"format": "prettier --plugin-search-dir . --write .",
 		"coverage": "vitest run --coverage"
 	},
 	"devDependencies": {
-		"@sveltejs/adapter-auto": "^1.0.0",
-		"@sveltejs/kit": "^1.0.0",
-		"@sveltejs/package": "^1.0.0",
+		"@types/node": "^18.11.18",
 		"@typescript-eslint/eslint-plugin": "^5.45.0",
 		"@typescript-eslint/parser": "^5.45.0",
-		"@vitest/coverage-c8": "^0.26.3",
+		"@vitest/coverage-c8": "^0.27.0",
 		"eslint": "^8.28.0",
 		"eslint-config-prettier": "^8.5.0",
-		"eslint-plugin-svelte3": "^4.0.0",
 		"prettier": "^2.8.0",
-		"prettier-plugin-svelte": "^2.8.1",
-		"svelte": "^3.54.0",
-		"svelte-check": "^2.9.2",
-		"tslib": "^2.4.1",
+		"tsup": "^6.5.0",
 		"typescript": "^4.9.3",
-		"vite": "^4.0.0",
-		"vitest": "0.25.3"
-	},
-	"type": "module"
+		"vitest": "^0.27.0"
+	}
 }
