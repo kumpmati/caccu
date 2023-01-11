@@ -1,4 +1,4 @@
-import CaccuDefaultExport, { Caccu as CaccuNamedExport } from '$lib';
+import CaccuDefaultExport, { Caccu as CaccuNamedExport } from '../';
 import { describe, expect, it } from 'vitest';
 
 describe('exports & general', () => {
