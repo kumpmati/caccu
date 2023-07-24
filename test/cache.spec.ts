@@ -108,14 +108,23 @@ describe('cache methods', () => {
 			});
 		});
 
-		it('throws any error thrown inside the update function', (t) => {
-			const msg = 'error';
+		it('bubbles up any error thrown inside the update function', async (t) => {
+			await expect(
+				c.getOrUpdate(t.meta.id, async () => {
+					throw new Error(t.meta.id);
+				})
+			).rejects.toThrow(t.meta.id);
+		});
 
-			c.getOrUpdate(t.meta.id, async () => {
-				throw new Error(msg);
-			}).catch((err) => {
-				expect(err.message).toBe(msg);
-			});
+		it('does not populate the cache if an error is thrown during update function', async (t) => {
+			try {
+				await c.getOrUpdate(t.meta.id, async () => {
+					throw new Error(t.meta.id);
+				});
+			} catch (err) {
+				const fromCache = c.get(t.meta.id);
+				expect(fromCache).toBeNull();
+			}
 		});
 
 		it('updates the value in the cache using the update function', async (t) => {
