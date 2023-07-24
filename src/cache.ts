@@ -98,13 +98,13 @@ export class Caccu {
 		}
 
 		const promise = update()
+			.catch((err) => {
+				throw err;
+			})
 			.then((v) => {
 				this.set(key, v, ttl); // update cache with latest value
 				this._promises.delete(key); // remove pending promise
 				return v;
-			})
-			.catch((err) => {
-				throw err;
 			});
 
 		this._promises.set(key, promise);
@@ -126,7 +126,7 @@ export class Caccu {
 	};
 
 	/**
-	 * Removes the given key from the cache.
+	 * Removes the given item from the cache.
 	 * @param key
 	 */
 	delete = (key: string) => {
@@ -137,9 +137,14 @@ export class Caccu {
 	};
 
 	/**
+	 * Removes all items from the cache.
+	 */
+	clear = () => {
+		this._mem.clear();
+	};
+
+	/**
 	 * Stops the garbage collection and clears the in-memory cache.
-	 *
-	 * This does **not** clear the external store.
 	 */
 	destroy = () => {
 		this._mem.clear();
