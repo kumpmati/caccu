@@ -85,6 +85,44 @@ describe('cache methods', () => {
 		});
 	});
 
+	describe('.update', () => {
+		it('throws if key is not string', () => {
+			expect(() => {
+				c.update(5 as any, 1); // not a string
+			}).toThrow();
+		});
+
+		it('updates the value if an existing entry is found', (t) => {
+			const value = { a: 1 };
+			c.set(t.meta.id, value); // set existing entry
+
+			const updated = { b: 2 };
+
+			const cachedValue = c.update(t.meta.id, updated);
+			expect(cachedValue === updated).toBe(true);
+			expect(c.get(t.meta.id)).toBe(updated);
+		});
+
+		it('does not set the value if an existing entry is not found', (t) => {
+			const cachedValue = c.update(t.meta.id, 1);
+			expect(cachedValue).toBe(null);
+			expect(c.get(t.meta.id)).toBeNull();
+		});
+
+		it('does not update the TTL of the existing entry', (t) => {
+			c.set(t.meta.id, 'original', 1); // define TTL
+
+			const before = c.getDetails(t.meta.id);
+			c.update(t.meta.id, 'updated');
+			const after = c.getDetails(t.meta.id);
+
+			expect(before).not.toBeNull();
+			expect(after).not.toBeNull();
+			expect(before?.exp).toBe(after?.exp);
+			expect(before?.ttl).toBe(after?.ttl);
+		});
+	});
+
 	describe('.getOrUpdate()', () => {
 		it('is public', () => {
 			expect(c.getOrUpdate).toBeTypeOf('function');

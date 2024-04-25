@@ -77,32 +77,36 @@ export class Caccu {
 	};
 
 	/**
-	 * Updates a value in the cache. Works the same way as `.set` when `newTTL` is defined,
-	 * otherwise updates the value without updating the TTL of the entry.
-	 *
-	 * If the entry has already expired, it will stay expired despite updating the value.
+	 * Returns a read-only version of the cache entry, or null if it does not exist.
 	 *
 	 * @param key Key used to retrieve value from cache
-	 * @param value Value to store in cache
-	 * @param newTTL How long to store value in cache (seconds), or leave undefined to keep existing TTL value
-	 * @returns The value stored in the cache
+	 * @returns Value, TTL and expiry timestamp, or `null` if the cache entry does not exist.
 	 */
-	update = <T = any>(key: string, value: T, newTTL?: number): T => {
+	getDetails = <T = any>(key: string): Readonly<CacheEntry<T> & { alive: boolean }> | null => {
+		const entry = this._mem.get(key);
+		if (!entry) return null;
+
+		return { ...entry, alive: alive(entry) }; // spread so that mutations do not affect original entry
+	};
+
+	/**
+	 * Updates an existing value in the cache without touching its expiry time.
+	 * If the value does not exist or has already expired, this does nothing.
+	 *
+	 * @param key Key used to retrieve value from cache
+	 * @param value Updated value to store in the cache
+	 * @returns Updated value, or `null` if the value was not updated
+	 */
+	update = <T = any>(key: string, value: T): T | null => {
 		if (!str(key)) throw new TypeError(ERR_KEY_TYPE);
-		if (typeof newTTL === 'number' && newTTL < 0) throw new Error(ERR_TTL_BELOW_ZERO);
 
 		const entry = this._mem.get(key);
-
-		if (!entry) {
+		if (!alive(entry)) {
 			this._statistics.misses += 1;
-			return this.set(key, value, newTTL);
+			return null;
 		}
 
 		this._statistics.hits += 1;
-
-		if (typeof newTTL === 'number') {
-			return this.set(key, value, newTTL);
-		}
 
 		// update value without touching the TTL or expiry
 		entry.val = value;
