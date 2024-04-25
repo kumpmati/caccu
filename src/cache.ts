@@ -4,6 +4,7 @@ import { func, str } from './util';
 const DEFAULT_GC_INTERVAL = 1000 * 60 * 60; // 60 minutes
 const ERR_KEY_TYPE = 'key must be a string';
 const ERR_TTL_BELOW_ZERO = 'ttl cannot be below 0';
+const ERR_UPDATE_FUNC_TYPE = 'update must be a function';
 
 export class Caccu {
 	private _mem: Map<string, CacheEntry>;
@@ -124,7 +125,7 @@ export class Caccu {
 	 */
 	getOrUpdate = async <T = any>(key: string, update: UpdateFunc<T>, ttl = 0): Promise<T> => {
 		if (!str(key)) throw new TypeError(ERR_KEY_TYPE);
-		if (!func(update)) throw new TypeError('update must be a function');
+		if (!func(update)) throw new TypeError(ERR_UPDATE_FUNC_TYPE);
 
 		// wait for any pending updates to finish before accessing cache
 		const pending = this._promises.get(key);
@@ -136,7 +137,11 @@ export class Caccu {
 			return entry.val;
 		}
 
-		const promise = update()
+		const promise = update({
+			key,
+			ttl,
+			prev: this._mem.get(key)?.val ?? null
+		})
 			.catch((err) => {
 				throw err;
 			})
