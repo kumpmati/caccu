@@ -3,6 +3,7 @@ import { func, str } from './util';
 
 const DEFAULT_GC_INTERVAL = 1000 * 60 * 60; // 60 minutes
 const ERR_KEY_TYPE = 'key must be a string';
+const ERR_TTL_BELOW_ZERO = 'ttl cannot be below 0';
 
 export class Caccu {
 	private _mem: Map<string, CacheEntry>;
@@ -45,7 +46,7 @@ export class Caccu {
 	 */
 	set = <T = any>(key: string, value: T, ttl = 0): T => {
 		if (!str(key)) throw new TypeError(ERR_KEY_TYPE);
-		if (ttl < 0) throw new Error('ttl cannot be below 0');
+		if (ttl < 0) throw new Error(ERR_TTL_BELOW_ZERO);
 
 		this._mem.set(key, {
 			val: value,
@@ -71,6 +72,44 @@ export class Caccu {
 		}
 
 		this._statistics.hits += 1;
+
+		return entry.val;
+	};
+
+	/**
+	 * Returns a read-only version of the cache entry, or null if it does not exist.
+	 *
+	 * @param key Key used to retrieve value from cache
+	 * @returns Value, TTL and expiry timestamp, or `null` if the cache entry does not exist.
+	 */
+	getDetails = <T = any>(key: string): Readonly<CacheEntry<T> & { alive: boolean }> | null => {
+		const entry = this._mem.get(key);
+		if (!entry) return null;
+
+		return { ...entry, alive: alive(entry) }; // spread so that mutations do not affect original entry
+	};
+
+	/**
+	 * Updates an existing value in the cache without touching its expiry time.
+	 * If the value does not exist or has already expired, this does nothing.
+	 *
+	 * @param key Key used to retrieve value from cache
+	 * @param value Updated value to store in the cache
+	 * @returns Updated value, or `null` if the value was not updated
+	 */
+	update = <T = any>(key: string, value: T): T | null => {
+		if (!str(key)) throw new TypeError(ERR_KEY_TYPE);
+
+		const entry = this._mem.get(key);
+		if (!alive(entry)) {
+			this._statistics.misses += 1;
+			return null;
+		}
+
+		this._statistics.hits += 1;
+
+		// update value without touching the TTL or expiry
+		entry.val = value;
 
 		return entry.val;
 	};
@@ -114,7 +153,7 @@ export class Caccu {
 	};
 
 	/**
-	 * Returns `true` if cache contains a value for the given `key`.
+	 * Returns `true` if cache contains a non-expired value for `key`.
 	 * This does not affect the cache statistics.
 	 * @param key key to check
 	 * @returns
