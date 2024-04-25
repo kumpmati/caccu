@@ -3,6 +3,7 @@ import { func, str } from './util';
 
 const DEFAULT_GC_INTERVAL = 1000 * 60 * 60; // 60 minutes
 const ERR_KEY_TYPE = 'key must be a string';
+const ERR_TTL_BELOW_ZERO = 'ttl cannot be below 0';
 
 export class Caccu {
 	private _mem: Map<string, CacheEntry>;
@@ -45,7 +46,7 @@ export class Caccu {
 	 */
 	set = <T = any>(key: string, value: T, ttl = 0): T => {
 		if (!str(key)) throw new TypeError(ERR_KEY_TYPE);
-		if (ttl < 0) throw new Error('ttl cannot be below 0');
+		if (ttl < 0) throw new Error(ERR_TTL_BELOW_ZERO);
 
 		this._mem.set(key, {
 			val: value,
@@ -71,6 +72,40 @@ export class Caccu {
 		}
 
 		this._statistics.hits += 1;
+
+		return entry.val;
+	};
+
+	/**
+	 * Updates a value in the cache. Works the same way as `.set` when `newTTL` is defined,
+	 * otherwise updates the value without updating the TTL of the entry.
+	 *
+	 * If the entry has already expired, it will stay expired despite updating the value.
+	 *
+	 * @param key Key used to retrieve value from cache
+	 * @param value Value to store in cache
+	 * @param newTTL How long to store value in cache (seconds), or leave undefined to keep existing TTL value
+	 * @returns The value stored in the cache
+	 */
+	update = <T = any>(key: string, value: T, newTTL?: number): T => {
+		if (!str(key)) throw new TypeError(ERR_KEY_TYPE);
+		if (typeof newTTL === 'number' && newTTL < 0) throw new Error(ERR_TTL_BELOW_ZERO);
+
+		const entry = this._mem.get(key);
+
+		if (!entry) {
+			this._statistics.misses += 1;
+			return this.set(key, value, newTTL);
+		}
+
+		this._statistics.hits += 1;
+
+		if (typeof newTTL === 'number') {
+			return this.set(key, value, newTTL);
+		}
+
+		// update value without touching the TTL or expiry
+		entry.val = value;
 
 		return entry.val;
 	};
@@ -114,7 +149,7 @@ export class Caccu {
 	};
 
 	/**
-	 * Returns `true` if cache contains a value for the given `key`.
+	 * Returns `true` if cache contains a non-expired value for `key`.
 	 * This does not affect the cache statistics.
 	 * @param key key to check
 	 * @returns
