@@ -68,7 +68,7 @@ describe('cache methods', () => {
 			const value = { a: 1 };
 			c.set(t.meta.id, value, 1); // expire in 1 second
 
-			await sleep(0.5 * 1000); // sleep for .5 seconds
+			await sleep(0.1 * 1000); // wait less than the expiry of the value
 
 			const cachedValue = c.get(t.meta.id);
 			expect(cachedValue).toBe(value);
@@ -76,9 +76,9 @@ describe('cache methods', () => {
 
 		it('does not return an expired item', async (t) => {
 			const value = { a: 1 };
-			c.set(t.meta.id, value, 0.5); // expire in .5 seconds
+			c.set(t.meta.id, value, 0.1); // expire in .1 seconds
 
-			await sleep(1 * 1000); // sleep for 1 second
+			await sleep(0.2 * 1000); // wait for value to expire
 
 			const cachedValue = c.get(t.meta.id);
 			expect(cachedValue).toBe(null);
@@ -167,11 +167,11 @@ describe('cache methods', () => {
 
 		it('updates the value in the cache using the update function', async (t) => {
 			const value = { a: 1 };
-			c.set(t.meta.id, value, 0.5); // expire in .5 seconds
+			c.set(t.meta.id, value, 0.1); // expire in .25 seconds
 
 			const oldValue = c.get(t.meta.id);
 
-			await sleep(1000 * 1); // wait 1 second
+			await sleep(200); // wait half a second
 
 			const newValue = await c.getOrUpdate(t.meta.id, async () => {
 				return { b: 2 };
@@ -181,6 +181,52 @@ describe('cache methods', () => {
 
 			expect(oldValue === newValue).toBe(false); // should be different
 			expect(newValue === afterUpdate).toBe(true); // should be same reference
+		});
+
+		it('receives the cached value if not expired', async (t) => {
+			const value = { a: 1 };
+			c.set(t.meta.id, value, 0.25); // expire in .25 seconds
+
+			const oldValue = c.get(t.meta.id);
+
+			await sleep(100); // wait 250ms
+
+			const newValue = await c.getOrUpdate(t.meta.id, async () => {
+				return { b: 2 };
+			});
+
+			expect(oldValue).toBe(newValue);
+		});
+
+		it('receives the correct arguments in the update function', async (t) => {
+			const TTL = 0.1;
+
+			const a = await c.getOrUpdate(
+				t.meta.id,
+				async ({ key, ttl, prev }) => {
+					expect(key).toBe(t.meta.id);
+					expect(ttl).toBe(TTL);
+					expect(prev).toBeNull();
+
+					return 'a';
+				},
+				TTL
+			);
+
+			await sleep(200); // wait until entry has expired
+
+			const b = await c.getOrUpdate(
+				t.meta.id,
+				async ({ prev }) => {
+					expect(prev).toBe('a');
+
+					return 'b';
+				},
+				TTL
+			);
+
+			expect(a).toBe('a');
+			expect(b).toBe('b');
 		});
 	});
 
